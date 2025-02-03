@@ -25,7 +25,7 @@ TelYab is an advanced Telegram username lookup tool built with React, offering a
 
 1. Clone the repository
 ```bash
-git clone https://github.com/your-username/telyab.git
+git clone https://github.com/mehrshud/telyab.git
 cd telyab
 ```
 
