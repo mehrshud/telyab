@@ -26,7 +26,7 @@ const LANG = {
       'بررسی اطلاعات کاربر...',
       'تحلیل نتایج...'
     ],
-    notFound: 'موجود نیست',
+    notFound: 'متاسفانه، نام کاربری شما در پایگاه داده موجود نیست',
     result: 'نتیجه',
     reset: 'شروع مجدد',
     logout: 'خروج',
@@ -117,12 +117,12 @@ function UsernameLookup({ onLogout }) {
 
     // Simulate step-by-step search with randomized delays.
     for (let i = 0; i < LANG.fa.searchSteps.length; i++) {
-      const delay = randomDelay(20000, 60000);
+      const delay = randomDelay(10000, 22000);
       await new Promise(resolve => setTimeout(resolve, delay));
       setSearchStep(i);
     }
     
-    await new Promise(resolve => setTimeout(resolve, randomDelay(20000, 30000)));
+    await new Promise(resolve => setTimeout(resolve, randomDelay(5000, 12000)));
     
     const consistentResult = generateDeterministicResult(username);
     setResult(consistentResult);
