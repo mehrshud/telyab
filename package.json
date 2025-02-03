@@ -1,0 +1,36 @@
+{
+  "name": "telyab",
+  "version": "1.0.0",
+  "description": "A Telegram username lookup tool with advanced search and analysis features",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "keywords": [
+    "telegram",
+    "username",
+    "lookup",
+    "react",
+    "persian",
+    "search-tool"
+  ],
+  "author": "Mehrshad",
+  "license": "MIT",
+  "dependencies": {
+    "framer-motion": "^10.16.4",
+    "lucide-react": "^0.263.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-helmet": "^6.1.0",
+    "react-scripts": "5.0.1",
+    "tailwindcss": "^3.3.3"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^5.16.5",
+    "@testing-library/react": "^13.4.0",
+    "@testing-library/user-event": "^13.5.0"
+  }
+}
