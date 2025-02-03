@@ -1,36 +1,34 @@
 {
   "name": "telyab",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "A Telegram username lookup tool with advanced search and analysis features",
   "main": "src/index.js",
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
-  },
-  "keywords": [
-    "telegram",
-    "username",
-    "lookup",
-    "react",
-    "persian",
-    "search-tool"
-  ],
-  "author": "Mehrshad",
-  "license": "MIT",
-  "dependencies": {
-    "framer-motion": "^10.16.4",
-    "lucide-react": "^0.263.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-helmet": "^6.1.0",
-    "react-scripts": "5.0.1",
-    "tailwindcss": "^3.3.3"
+    "start": "webpack serve --mode development --open",
+    "build": "webpack --config webpack.config.js"
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "^5.16.5",
-    "@testing-library/react": "^13.4.0",
-    "@testing-library/user-event": "^13.5.0"
+    "@babel/core": "^7.26.7",
+    "@babel/preset-env": "^7.26.7",
+    "@babel/preset-react": "^7.26.3",
+    "autoprefixer": "^10.4.20",
+    "babel-loader": "^9.2.1",
+    "css-loader": "^7.1.2",
+    "html-webpack-plugin": "^5.6.3",
+    "postcss": "^8.5.1",
+    "postcss-loader": "^8.1.1",
+    "style-loader": "^4.0.0",
+    "tailwindcss": "^3.4.17",
+    "webpack": "^5.97.1",
+    "webpack-cli": "^6.0.1",
+    "webpack-dev-server": "^5.2.0"
+  },
+  "dependencies": {
+    "framer-motion": "^12.0.9",
+    "lucide-react": "^0.474.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-helmet": "^6.1.0",
+    "web-vitals": "^4.2.4"
   }
 }

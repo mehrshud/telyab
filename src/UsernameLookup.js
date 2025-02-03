@@ -8,7 +8,8 @@ import {
   AlertTriangle,
   RefreshCcw,
   LogOut,
-  Copy
+  Copy,
+  Info
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -16,7 +17,7 @@ const LANG = {
   fa: {
     title: 'جستجوی نام کاربری',
     subtitle: 'ابزار تحلیل نام کاربری تلگرام',
-    placeholder: 'نام کاربری را وارد کنید',
+    placeholder: 'نام کاربری را وارد کنید (مثلاً @username)',
     search: 'جستجو',
     analyzing: 'در حال تحلیل...',
     searchSteps: [
@@ -32,7 +33,8 @@ const LANG = {
     history: 'تاریخچه جستجو',
     clearHistory: 'پاک کردن تاریخچه',
     copy: 'کپی نتیجه',
-    copyright: 'تمامی حقوق محفوظ است © مهرشاد'
+    copyright: 'تمامی حقوق محفوظ است © مهرشاد',
+    invalidUsername: 'نام کاربری نامعتبر است. باید با @ شروع شده و شامل 5 تا 32 کاراکتر (حروف، ارقام یا _) باشد.'
   }
 };
 
@@ -73,6 +75,30 @@ function UsernameLookup({ onLogout }) {
     const stored = localStorage.getItem('searchHistory');
     return stored ? JSON.parse(stored) : [];
   });
+  const [inputError, setInputError] = useState('');
+
+  // Validate only when input length is sufficient
+  const validateUsername = (value) => {
+    if (!value) return '';
+    if (value[0] !== '@') {
+      return 'نام کاربری باید با @ شروع شود.';
+    }
+    // Let the user complete their input until it reaches a minimal length.
+    if (value.length < 6) return '';
+    // Now, if the input is long enough, verify it matches the complete pattern.
+    const regex = /^@([a-zA-Z0-9_]{5,32})$/;
+    if (!regex.test(value)) {
+      return LANG.fa.invalidUsername;
+    }
+    return '';
+  };
+
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    setUsername(value);
+    const errorMsg = validateUsername(value);
+    setInputError(errorMsg);
+  };
 
   const toggleDarkMode = () => {
     setDarkMode(prevMode => {
@@ -82,6 +108,9 @@ function UsernameLookup({ onLogout }) {
   };
 
   const handleSearch = async () => {
+    // Do not run search if input is invalid.
+    if (inputError) return;
+
     setLoading(true);
     setResult(null);
     setSearchStep(0);
@@ -114,6 +143,7 @@ function UsernameLookup({ onLogout }) {
   const handleReset = () => {
     setUsername('');
     setResult(null);
+    setInputError('');
   };
 
   const handleClearHistory = () => {
@@ -134,6 +164,8 @@ function UsernameLookup({ onLogout }) {
     try {
       const text = await navigator.clipboard.readText();
       setUsername(text);
+      const errorMsg = validateUsername(text);
+      setInputError(errorMsg);
     } catch (err) {
       alert('Paste failed.');
     }
@@ -226,23 +258,31 @@ function UsernameLookup({ onLogout }) {
         <motion.div 
           initial={{ x: -20, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
-          className="flex flex-col sm:flex-row items-center gap-2"
+          className="flex flex-col sm:flex-row items-center gap-2 relative"
         >
           <input 
             type="text" 
             value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            onChange={handleInputChange}
             placeholder={LANG.fa.placeholder}
-            className={`flex-grow p-3 rounded-lg focus:outline-none focus:ring-2 ${
-              darkMode 
-                ? 'bg-gray-700 text-white border-gray-600 focus:ring-blue-600' 
-                : 'border-2 border-blue-200 focus:ring-blue-400 text-right'
+            className={`flex-grow p-3 rounded-lg focus:outline-none focus:ring-2 transition-all ${
+              inputError
+                ? 'border-2 border-red-500 focus:ring-red-500'
+                : darkMode 
+                  ? 'bg-gray-700 text-white border-gray-600 focus:ring-blue-600'
+                  : 'bg-white text-gray-900 border-2 border-blue-200 focus:ring-blue-400'
             }`}
           />
+          {/* If there is an error, show an info icon */}
+          {inputError && (
+            <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+              <Info size={20} className="text-red-500" title={inputError} />
+            </div>
+          )}
           <div className="flex gap-2">
             <motion.button 
               onClick={handleSearch}
-              disabled={!username || loading}
+              disabled={!username || loading || inputError}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               className={`${
@@ -279,6 +319,17 @@ function UsernameLookup({ onLogout }) {
             </motion.button>
           </div>
         </motion.div>
+
+        {/* Display error message below input if any */}
+        {inputError && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-sm text-red-500 text-right"
+          >
+            {inputError}
+          </motion.div>
+        )}
 
         {/* Loading Steps */}
         <AnimatePresence>
