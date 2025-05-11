@@ -9,17 +9,19 @@ import {
   RefreshCcw,
   LogOut,
   Copy,
-  Info
+  Info,
+  ArrowRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const LANG = {
   fa: {
     title: 'جستجوی نام کاربری',
-    subtitle: 'ابزار تحلیل نام کاربری تلگرام',
-    placeholder: 'نام کاربری را وارد کنید (مثلاً @username)',
+    subtitle: 'ابزار تحلیل نام کاربری ',
+    placeholder: 'نام کاربری را وارد کنید',
     search: 'جستجو',
     analyzing: 'در حال تحلیل...',
+    back: 'بازگشت',
     searchSteps: [
       'برقراری ارتباط با سرور...',
       'جستجو در پایگاه داده...',
@@ -33,7 +35,7 @@ const LANG = {
     history: 'تاریخچه جستجو',
     clearHistory: 'پاک کردن تاریخچه',
     copy: 'کپی نتیجه',
-    copyright: 'تمامی حقوق محفوظ است © مهرشاد',
+    copyright: 'تمامی حقوق محفوظ است © پلیس فتا یزد',
     invalidUsername: 'نام کاربری نامعتبر است. باید با @ شروع شده و شامل 5 تا 32 کاراکتر (حروف، ارقام یا _) باشد.'
   }
 };
@@ -62,7 +64,7 @@ const randomDelay = (min, max) => {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 };
 
-function UsernameLookup({ onLogout }) {
+function UsernameLookup({ onLogout, onBack, platform }) {
   const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -117,12 +119,12 @@ function UsernameLookup({ onLogout }) {
 
     // Simulate step-by-step search with randomized delays.
     for (let i = 0; i < LANG.fa.searchSteps.length; i++) {
-      const delay = randomDelay(10000, 22000);
+      const delay = randomDelay(800, 1500); // Reduced delays for better UX during development
       await new Promise(resolve => setTimeout(resolve, delay));
       setSearchStep(i);
     }
     
-    await new Promise(resolve => setTimeout(resolve, randomDelay(5000, 12000)));
+    await new Promise(resolve => setTimeout(resolve, randomDelay(500, 1000)));
     
     const consistentResult = generateDeterministicResult(username);
     setResult(consistentResult);
@@ -132,6 +134,7 @@ function UsernameLookup({ onLogout }) {
     // Save the search result to history.
     const newEntry = {
       username,
+      platform,
       result: consistentResult,
       timestamp: new Date().toISOString()
     };
@@ -168,6 +171,61 @@ function UsernameLookup({ onLogout }) {
       setInputError(errorMsg);
     } catch (err) {
       alert('Paste failed.');
+    }
+  };
+
+  // Get platform display name
+  const getPlatformName = () => {
+    switch(platform) {
+      case 'telegram': return 'تلگرام';
+      case 'instagram': return 'اینستاگرام';
+      case 'linkedin': return 'لینکدین';
+      case 'facebook': return 'فیسبوک';
+      default: return '';
+    }
+  };
+
+  // Get platform icon
+  const getPlatformIcon = () => {
+    switch(platform) {
+      case 'telegram': 
+        return (
+          <svg className="w-16 h-16 text-blue-500" viewBox="0 0 24 24">
+            <path 
+              fill="currentColor" 
+              d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.03-1.99 1.27-5.62 3.72-.53.36-1.01.54-1.44.53-.47-.01-1.38-.26-2.06-.48-.83-.27-1.49-.42-1.43-.89.03-.25.38-.51 1.05-.78 4.12-1.79 6.87-2.97 8.26-3.54 3.93-1.62 4.75-1.9 5.27-1.91.12 0 .37.03.54.17.14.12.18.28.2.45-.01.05.01.13 0 .21z"
+            />
+          </svg>
+        );
+      case 'instagram':
+        return (
+          <svg className="w-16 h-16 text-purple-600" viewBox="0 0 24 24">
+            <path 
+              fill="currentColor" 
+              d="M12 2c2.717 0 3.056.01 4.122.06 1.065.05 1.79.217 2.428.465.66.254 1.216.598 1.772 1.153.509.5.902 1.105 1.153 1.772.247.637.415 1.363.465 2.428.047 1.066.06 1.405.06 4.122 0 2.717-.01 3.056-.06 4.122-.05 1.065-.218 1.79-.465 2.428-.254.66-.598 1.216-1.153 1.772-.5.509-1.105.902-1.772 1.153-.637.247-1.363.415-2.428.465-1.066.047-1.405.06-4.122.06-2.717 0-3.056-.01-4.122-.06-1.065-.05-1.79-.218-2.428-.465-.66-.254-1.216-.598-1.772-1.153-.509-.5-.902-1.105-1.153-1.772-.247-.637-.415-1.363-.465-2.428-.047-1.066-.06-1.405-.06-4.122 0-2.717.01-3.056.06-4.122.05-1.065.218-1.79.465-2.428.254-.66.598-1.216 1.153-1.772.5-.509 1.105-.902 1.772-1.153.637-.247 1.363-.415 2.428-.465 1.066-.047 1.405-.06 4.122-.06M12 0C9.237 0 8.867.01 7.784.06 6.701.11 5.785.287 4.985.547c-.79.262-1.48.652-2.074 1.147-.695.695-1.227 1.489-1.547 2.373-.26.8-.437 1.716-.487 2.8-.047 1.082-.06 1.452-.06 4.233 0 2.78.01 3.15.06 4.233.05 1.083.227 2 .487 2.8.27.8.652 1.52 1.147 2.113.6.595 1.314 1.073 2.113 1.387.8.26 1.716.437 2.8.487 1.082.047 1.452.06 4.232.06 2.78 0 3.15-.01 4.233-.06 1.083-.05 2-.227 2.8-.487.8-.27 1.52-.652 2.113-1.147.595-.6 1.073-1.314 1.387-2.113.26-.8.437-1.716.487-2.8.047-1.082.06-1.452.06-4.232 0-2.78-.01-3.15-.06-4.233-.05-1.083-.227-2-.487-2.8-.27-.8-.652-1.52-1.147-2.113-.6-.595-1.314-1.073-2.113-1.387-.8-.26-1.716-.437-2.8-.487-1.082-.047-1.452-.06-4.232-.06h-.06zM12 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"
+            />
+          </svg>
+        );
+      case 'linkedin':
+        return (
+          <svg className="w-16 h-16 text-blue-700" viewBox="0 0 24 24">
+            <path 
+              fill="currentColor" 
+              d="M19 3a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h14m-.5 15.5v-5.3a3.26 3.26 0 00-3.26-3.26c-.85 0-1.84.52-2.32 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 011.4 1.4v4.93h2.79M6.88 8.56a1.68 1.68 0 001.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 00-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z"
+            />
+          </svg>
+        );
+      case 'facebook':
+        return (
+          <svg className="w-16 h-16 text-blue-600" viewBox="0 0 24 24">
+            <path 
+              fill="currentColor" 
+              d="M12 2.04c-5.5 0-10 4.49-10 10.02 0 5 3.66 9.15 8.44 9.9v-7H7.9v-2.9h2.54V9.85c0-2.51 1.49-3.89 3.78-3.89 1.09 0 2.23.19 2.23.19v2.47h-1.26c-1.24 0-1.63.77-1.63 1.56v1.88h2.78l-.45 2.9h-2.33v7a10 10 0 008.44-9.9c0-5.53-4.5-10.02-10-10.02z"
+            />
+          </svg>
+        );
+      default:
+        return null;
     }
   };
 
@@ -216,6 +274,23 @@ function UsernameLookup({ onLogout }) {
         </motion.button>
       </div>
 
+      {/* Back Button */}
+      <div className="absolute top-4 right-4">
+        <motion.button
+          onClick={onBack}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          className={`flex items-center gap-2 p-2 rounded-lg ${
+            darkMode 
+              ? 'bg-gray-700 text-blue-400 hover:bg-gray-600' 
+              : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+          }`}
+        >
+          <ArrowRight size={16} />
+          <span>{LANG.fa.back}</span>
+        </motion.button>
+      </div>
+
       <motion.div 
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -226,18 +301,13 @@ function UsernameLookup({ onLogout }) {
             : 'bg-white'
         } shadow-2xl rounded-2xl p-6 space-y-6`}
       >
-        {/* Telegram Logo */}
+        {/* Platform Logo */}
         <motion.div 
           initial={{ y: -20 }}
           animate={{ y: 0 }}
           className="flex justify-center"
         >
-          <svg className="w-16 h-16 text-blue-500" viewBox="0 0 24 24">
-            <path 
-              fill="currentColor" 
-              d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.03-1.99 1.27-5.62 3.72-.53.36-1.01.54-1.44.53-.47-.01-1.38-.26-2.06-.48-.83-.27-1.49-.42-1.43-.89.03-.25.38-.51 1.05-.78 4.12-1.79 6.87-2.97 8.26-3.54 3.93-1.62 4.75-1.9 5.27-1.91.12 0 .37.03.54.17.14.12.18.28.2.45-.01.05.01.13 0 .21z"
-            />
-          </svg>
+          {getPlatformIcon()}
         </motion.div>
 
         {/* Header */}
@@ -250,7 +320,7 @@ function UsernameLookup({ onLogout }) {
             {LANG.fa.title}
           </h1>
           <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'} mt-2`}>
-            {LANG.fa.subtitle}
+            {`${LANG.fa.subtitle} ${getPlatformName()}`}
           </p>
         </motion.div>
 
@@ -422,14 +492,14 @@ function UsernameLookup({ onLogout }) {
             </div>
             <ul className="mt-2 space-y-2">
               {history.map((entry, index) => (
-                <li key={index} className="p-2 bg-gray-100 dark:bg-gray-700 rounded flex justify-between items-center">
+                <li key={index} className={`p-2 ${darkMode ? 'bg-gray-700' : 'bg-gray-100'} rounded flex justify-between items-center`}>
                   <div>
                     <p className="text-sm">{entry.username}</p>
                     <p className="text-xs text-gray-500">{new Date(entry.timestamp).toLocaleString()}</p>
                   </div>
                   <button 
                     onClick={() => handleCopyResult(entry.result.found ? entry.result.data : LANG.fa.notFound)}
-                    className="p-1 rounded bg-blue-200 dark:bg-blue-600"
+                    className={`p-1 rounded ${darkMode ? 'bg-blue-600' : 'bg-blue-200'}`}
                   >
                     <Copy size={16} />
                   </button>

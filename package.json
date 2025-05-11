@@ -1,7 +1,7 @@
 {
   "name": "telyab",
-  "version": "1.2.0",
-  "description": "A Telegram username lookup tool with advanced search and analysis features",
+  "version": "2.1.0",
+  "description": "A Social Media username lookup tool with advanced search and analysis features",
   "main": "src/index.js",
 
   "scripts": {
