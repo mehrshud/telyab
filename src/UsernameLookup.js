@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Search, 
   Loader2, 
@@ -10,9 +10,13 @@ import {
   LogOut,
   Copy,
   Info,
-  ArrowRight
+  ArrowRight,
+  Calendar,
+  User,
+  Clock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Papa from 'papaparse';
 
 const LANG = {
   fa: {
@@ -36,33 +40,96 @@ const LANG = {
     clearHistory: 'پاک کردن تاریخچه',
     copy: 'کپی نتیجه',
     copyright: 'تمامی حقوق محفوظ است © پلیس فتا یزد',
-    invalidUsername: 'نام کاربری نامعتبر است. باید با @ شروع شده و شامل 5 تا 32 کاراکتر (حروف، ارقام یا _) باشد.'
+    invalidUsername: 'نام کاربری نامعتبر است. باید با @ شروع شده و شامل 5 تا 32 کاراکتر (حروف، ارقام یا _) باشد.',
+    accountCreated: 'تاریخ ایجاد حساب:',
+    userId: 'شناسه کاربر:',
+    lastActive: 'آخرین فعالیت:',
+    fetchingDatabase: 'در حال دریافت پایگاه داده...',
+    databaseError: 'خطا در دریافت پایگاه داده. لطفاً دوباره تلاش کنید.',
+    dataFetchError: 'خطا در دریافت اطلاعات از پایگاه داده.'
   }
 };
 
-const generateDeterministicResult = (username) => {
-  const hashCode = (str) => {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash;
+// Replace with your actual Dropbox URLs
+const DATABASE_URLS = {
+  telegram: 'https://www.dropbox.com/scl/fi/your-telegram-id/telegram_users.csv?dl=1',
+  instagram: 'https://www.dropbox.com/scl/fi/your-instagram-id/instagram_users.csv?dl=1',
+  linkedin: 'https://www.dropbox.com/scl/fi/your-linkedin-id/linkedin_users.csv?dl=1',
+  facebook: 'https://www.dropbox.com/scl/fi/your-facebook-id/facebook_users.csv?dl=1'
+};
+
+// Cache for databases
+const databaseCache = {};
+
+async function fetchDatabase(platform) {
+  if (databaseCache[platform]) {
+    return databaseCache[platform];
+  }
+  
+  try {
+    const response = await fetch(DATABASE_URLS[platform], {
+      headers: {
+        'Cache-Control': 'no-cache'
+      }
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to load database: ${response.statusText}`);
     }
-    return Math.abs(hash);
-  };
+    
+    const csvText = await response.text();
+    
+    return new Promise((resolve, reject) => {
+      Papa.parse(csvText, {
+        header: true,
+        dynamicTyping: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          // Validate required columns
+          const requiredColumns = ['username', 'creation_date'];
+          const columns = results.meta.fields;
+          const missingColumns = requiredColumns.filter(col => !columns.includes(col));
+          if (missingColumns.length > 0) {
+            reject(new Error(`Database missing required columns: ${missingColumns.join(', ')}`));
+            return;
+          }
+          
+          databaseCache[platform] = results.data;
+          resolve(results.data);
+        },
+        error: (error) => {
+          reject(error);
+        }
+      });
+    });
+  } catch (error) {
+    console.error('Error fetching database:', error);
+    throw error;
+  }
+}
 
-  const hash = hashCode(username.toLowerCase());
-  return {
-    found: hash % 10 < 2,
-    data: hash % 10 < 2 
-      ? `شماره: ${hash % 1000000}` 
-      : null
-  };
-};
+function searchUsername(database, username) {
+  const searchTerm = username.startsWith('@') ? username.substring(1) : username;
+  
+  return database.find(entry => 
+    entry.username && entry.username.toLowerCase() === searchTerm.toLowerCase()
+  );
+}
 
-const randomDelay = (min, max) => {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-};
+function formatDate(dateString) {
+  try {
+    const date = new Date(dateString);
+    const options = { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    };
+    return new Intl.DateTimeFormat('fa-IR', options).format(date);
+  } catch (e) {
+    return dateString;
+  }
+}
 
 function UsernameLookup({ onLogout, onBack, platform }) {
   const [username, setUsername] = useState('');
@@ -78,16 +145,29 @@ function UsernameLookup({ onLogout, onBack, platform }) {
     return stored ? JSON.parse(stored) : [];
   });
   const [inputError, setInputError] = useState('');
+  const [databaseStatus, setDatabaseStatus] = useState('');
 
-  // Validate only when input length is sufficient
+  useEffect(() => {
+    const preloadDatabase = async () => {
+      try {
+        setDatabaseStatus(LANG.fa.fetchingDatabase);
+        await fetchDatabase(platform);
+        setDatabaseStatus('');
+      } catch (error) {
+        setDatabaseStatus(LANG.fa.databaseError);
+        console.error('Failed to preload database:', error);
+      }
+    };
+    
+    preloadDatabase();
+  }, [platform]);
+
   const validateUsername = (value) => {
     if (!value) return '';
     if (value[0] !== '@') {
       return 'نام کاربری باید با @ شروع شود.';
     }
-    // Let the user complete their input until it reaches a minimal length.
     if (value.length < 6) return '';
-    // Now, if the input is long enough, verify it matches the complete pattern.
     const regex = /^@([a-zA-Z0-9_]{5,32})$/;
     if (!regex.test(value)) {
       return LANG.fa.invalidUsername;
@@ -109,38 +189,67 @@ function UsernameLookup({ onLogout, onBack, platform }) {
     });
   };
 
+  const simulateStepProgress = async () => {
+    for (let i = 0; i < LANG.fa.searchSteps.length; i++) {
+      const delay = Math.floor(Math.random() * (1500 - 800 + 1)) + 800;
+      await new Promise(resolve => setTimeout(resolve, delay));
+      setSearchStep(i);
+    }
+    
+    await new Promise(resolve => setTimeout(resolve, Math.floor(Math.random() * (1000 - 500 + 1)) + 500));
+  };
+
   const handleSearch = async () => {
-    // Do not run search if input is invalid.
     if (inputError) return;
 
     setLoading(true);
     setResult(null);
     setSearchStep(0);
 
-    // Simulate step-by-step search with randomized delays.
-    for (let i = 0; i < LANG.fa.searchSteps.length; i++) {
-      const delay = randomDelay(800, 1500); // Reduced delays for better UX during development
-      await new Promise(resolve => setTimeout(resolve, delay));
-      setSearchStep(i);
+    try {
+      await simulateStepProgress();
+      
+      const database = await fetchDatabase(platform);
+      
+      const userRecord = searchUsername(database, username);
+      
+      let searchResult = {
+        found: !!userRecord,
+        data: null
+      };
+      
+      if (userRecord) {
+        searchResult.data = {
+          username: userRecord.username,
+          userId: userRecord.user_id || userRecord.userId || 'N/A',
+          creationDate: userRecord.creation_date || userRecord.creationDate,
+          lastActive: userRecord.last_active || userRecord.lastActive || 'N/A'
+        };
+      }
+      
+      setResult(searchResult);
+      
+      const newEntry = {
+        username,
+        platform,
+        result: searchResult,
+        timestamp: new Date().toISOString()
+      };
+      
+      const newHistory = [newEntry, ...history];
+      setHistory(newHistory);
+      localStorage.setItem('searchHistory', JSON.stringify(newHistory));
+      
+    } catch (error) {
+      console.error('Error during search:', error);
+      setResult({
+        found: false,
+        error: LANG.fa.dataFetchError
+      });
+    } finally {
+      setLoading(false);
+      setSearchStep(0);
     }
-    
-    await new Promise(resolve => setTimeout(resolve, randomDelay(500, 1000)));
-    
-    const consistentResult = generateDeterministicResult(username);
-    setResult(consistentResult);
-    setLoading(false);
-    setSearchStep(0);
-
-    // Save the search result to history.
-    const newEntry = {
-      username,
-      platform,
-      result: consistentResult,
-      timestamp: new Date().toISOString()
-    };
-    const newHistory = [newEntry, ...history];
-    setHistory(newHistory);
-    localStorage.setItem('searchHistory', JSON.stringify(newHistory));
   };
 
   const handleReset = () => {
@@ -174,7 +283,6 @@ function UsernameLookup({ onLogout, onBack, platform }) {
     }
   };
 
-  // Get platform display name
   const getPlatformName = () => {
     switch(platform) {
       case 'telegram': return 'تلگرام';
@@ -185,7 +293,6 @@ function UsernameLookup({ onLogout, onBack, platform }) {
     }
   };
 
-  // Get platform icon
   const getPlatformIcon = () => {
     switch(platform) {
       case 'telegram': 
@@ -193,7 +300,7 @@ function UsernameLookup({ onLogout, onBack, platform }) {
           <svg className="w-16 h-16 text-blue-500" viewBox="0 0 24 24">
             <path 
               fill="currentColor" 
-              d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.03-1.99 1.27-5.62 3.72-.53.36-1.01.54-1.44.53-.47-.01-1.38-.26-2.06-.48-.83-.27-1.49-.42-1.43-.89.03-.25.38-.51 1.05-.78 4.12-1.79 6.87-2.97 8.26-3.54 3.93-1.62 4.75-1.9 5.27-1.91.12 0 .37.03.54.17.14.12.18.28.2.45-.01.05.01.13 0 .21z"
+              d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.20-.08-.06-.19-.04-.27-.02-.12.03-1.99 1.27-5.62 3.72-.53.36-1.01.54-1.44.53-.47-.01-1.38-.26-2.06-.48-.83-.27-1.49-.42-1.43-.89.03-.25.38-.51 1.05-.78 4.12-1.79 6.87-2.97 8.26-3.54 3.93-1.62 4.75-1.9 5.27-1.91.12 0 .37.03.54.17.14.12.18.28.2.45-.01.05.01.13 0 .21z"
             />
           </svg>
         );
@@ -245,7 +352,6 @@ function UsernameLookup({ onLogout, onBack, platform }) {
         }
       `}</style>
 
-      {/* Header Controls */}
       <div className="absolute top-4 left-4 flex items-center space-x-4">
         <motion.button
           onClick={onLogout}
@@ -274,7 +380,6 @@ function UsernameLookup({ onLogout, onBack, platform }) {
         </motion.button>
       </div>
 
-      {/* Back Button */}
       <div className="absolute top-4 right-4">
         <motion.button
           onClick={onBack}
@@ -301,7 +406,6 @@ function UsernameLookup({ onLogout, onBack, platform }) {
             : 'bg-white'
         } shadow-2xl rounded-2xl p-6 space-y-6`}
       >
-        {/* Platform Logo */}
         <motion.div 
           initial={{ y: -20 }}
           animate={{ y: 0 }}
@@ -310,7 +414,6 @@ function UsernameLookup({ onLogout, onBack, platform }) {
           {getPlatformIcon()}
         </motion.div>
 
-        {/* Header */}
         <motion.div 
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -322,9 +425,18 @@ function UsernameLookup({ onLogout, onBack, platform }) {
           <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'} mt-2`}>
             {`${LANG.fa.subtitle} ${getPlatformName()}`}
           </p>
+          
+          {databaseStatus && (
+            <p className={`text-xs mt-1 ${
+              databaseStatus === LANG.fa.databaseError 
+                ? 'text-red-500' 
+                : darkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>
+              {databaseStatus}
+            </p>
+          )}
         </motion.div>
 
-        {/* Search Input & Buttons */}
         <motion.div 
           initial={{ x: -20, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
@@ -343,7 +455,6 @@ function UsernameLookup({ onLogout, onBack, platform }) {
                   : 'bg-white text-gray-900 border-2 border-blue-200 focus:ring-blue-400'
             }`}
           />
-          {/* If there is an error, show an info icon */}
           {inputError && (
             <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
               <Info size={20} className="text-red-500" title={inputError} />
@@ -352,7 +463,7 @@ function UsernameLookup({ onLogout, onBack, platform }) {
           <div className="flex gap-2">
             <motion.button 
               onClick={handleSearch}
-              disabled={!username || loading || inputError}
+              disabled={!username || loading || inputError || databaseStatus === LANG.fa.fetchingDatabase}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               className={`${
@@ -390,7 +501,6 @@ function UsernameLookup({ onLogout, onBack, platform }) {
           </div>
         </motion.div>
 
-        {/* Display error message below input if any */}
         {inputError && (
           <motion.div 
             initial={{ opacity: 0 }}
@@ -401,7 +511,6 @@ function UsernameLookup({ onLogout, onBack, platform }) {
           </motion.div>
         )}
 
-        {/* Loading Steps */}
         <AnimatePresence>
           {loading && (
             <motion.div 
@@ -433,14 +542,13 @@ function UsernameLookup({ onLogout, onBack, platform }) {
           )}
         </AnimatePresence>
 
-        {/* Animated Result Display */}
         <AnimatePresence>
           {result && (
             <motion.div
               initial={{ opacity: 0, y: 20, scale: 0.8 }}
               animate={{ opacity: 1, y: 0, scale: 1, transition: { type: 'spring', stiffness: 300 } }}
               exit={{ opacity: 0, y: -20 }}
-              className={`p-4 rounded-lg text-center ${
+              className={`p-4 rounded-lg ${
                 result.found 
                   ? (darkMode ? 'bg-green-900 text-green-300' : 'bg-green-100 text-green-800')
                   : (darkMode ? 'bg-red-900 text-red-300' : 'bg-red-100 text-red-800')
@@ -450,66 +558,101 @@ function UsernameLookup({ onLogout, onBack, platform }) {
                 <motion.div 
                   initial={{ scale: 0 }}
                   animate={{ scale: 1, transition: { type: 'spring', stiffness: 400, damping: 10 } }}
-                  className="flex flex-col sm:flex-row items-center justify-center gap-2"
+                  className="flex flex-col gap-2"
                 >
-                  <CheckCircle className="text-green-600" />
-                  <span>{result.data}</span>
-                  <motion.button 
-                    onClick={() => handleCopyResult(result.data)}
-                    whileHover={{ scale: 1.1 }}
-                    className="p-1 rounded bg-gray-200 text-gray-800"
-                  >
-                    <Copy size={16} />
-                  </motion.button>
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold">{LANG.fa.result}</span>
+                    <motion.button 
+                      onClick={() => handleCopyResult(JSON.stringify(result.data))}
+                      whileHover={{ scale: 1.1 }}
+                      className={`p-1 rounded ${darkMode ? 'bg-green-800 text-white' : 'bg-green-200 text-green-800'}`}
+                    >
+                      <Copy size={16} />
+                    </motion.button>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 gap-2 mt-2">
+                    <div className={`flex items-center gap-2 p-2 rounded ${darkMode ? 'bg-green-800' : 'bg-green-50'}`}>
+                      <User size={18} />
+                      <span>نام کاربری: {'@' + result.data.username}</span>
+                    </div>
+                    <div className={`flex items-center gap-2 p-2 rounded ${darkMode ? 'bg-green-800' : 'bg-green-50'}`}>
+                      <Calendar size={18} />
+                      <span>{LANG.fa.accountCreated} {formatDate(result.data.creationDate)}</span>
+                    </div>
+                    {result.data.userId !== 'N/A' && (
+                      <div className={`flex items-center gap-2 p-2 rounded ${darkMode ? 'bg-green-800' : 'bg-green-50'}`}>
+                        <Info size={18} />
+                        <span>{LANG.fa.userId} {result.data.userId}</span>
+                      </div>
+                    )}
+                    {result.data.lastActive !== 'N/A' && (
+                      <div className={`flex items-center gap-2 p-2 rounded ${darkMode ? 'bg-green-800' : 'bg-green-50'}`}>
+                        <Clock size={18} />
+                        <span>{LANG.fa.lastActive} {formatDate(result.data.lastActive)}</span>
+                      </div>
+                    )}
+                  </div>
                 </motion.div>
               ) : (
                 <motion.div 
                   initial={{ scale: 0 }}
                   animate={{ scale: 1, transition: { type: 'spring', stiffness: 400, damping: 10 } }}
-                  className="flex items-center justify-center gap-2"
+                  className="flex items-center gap-2"
                 >
-                  <AlertTriangle className="text-red-600" />
-                  <span>{LANG.fa.notFound}</span>
+                  <AlertTriangle size={20} />
+                  <span>{result.error || LANG.fa.notFound}</span>
                 </motion.div>
               )}
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Search History */}
         {history.length > 0 && (
-          <div className="mt-4">
-            <div className="flex justify-between items-center">
-              <h2 className={`text-lg font-bold ${darkMode ? 'text-blue-300' : 'text-blue-800'}`}>
-                {LANG.fa.history}
-              </h2>
-              <button 
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="space-y-4"
+          >
+            <div className="flex items-center justify-between">
+              <span className="font-bold">{LANG.fa.history}</span>
+              <motion.button 
                 onClick={handleClearHistory}
-                className="text-sm text-red-500 hover:underline"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className={`text-sm ${darkMode ? 'text-red-400' : 'text-red-600'}`}
               >
                 {LANG.fa.clearHistory}
-              </button>
+              </motion.button>
             </div>
-            <ul className="mt-2 space-y-2">
+            <div className="max-h-40 overflow-y-auto space-y-2">
               {history.map((entry, index) => (
-                <li key={index} className={`p-2 ${darkMode ? 'bg-gray-700' : 'bg-gray-100'} rounded flex justify-between items-center`}>
-                  <div>
-                    <p className="text-sm">{entry.username}</p>
-                    <p className="text-xs text-gray-500">{new Date(entry.timestamp).toLocaleString()}</p>
+                <motion.div 
+                  key={index}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className={`p-2 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">
+                      {entry.username} ({getPlatformName(entry.platform)}) - {formatDate(entry.timestamp)}
+                    </span>
+                    {entry.result.found && (
+                      <motion.button 
+                        onClick={() => handleCopyResult(JSON.stringify(entry.result.data))}
+                        whileHover={{ scale: 1.1 }}
+                        className={`p-1 rounded ${darkMode ? 'bg-gray-600 text-white' : 'bg-gray-200 text-gray-800'}`}
+                      >
+                        <Copy size={14} />
+                      </motion.button>
+                    )}
                   </div>
-                  <button 
-                    onClick={() => handleCopyResult(entry.result.found ? entry.result.data : LANG.fa.notFound)}
-                    className={`p-1 rounded ${darkMode ? 'bg-blue-600' : 'bg-blue-200'}`}
-                  >
-                    <Copy size={16} />
-                  </button>
-                </li>
+                </motion.div>
               ))}
-            </ul>
-          </div>
+            </div>
+          </motion.div>
         )}
 
-        {/* Footer */}
         <div className="text-center text-xs text-gray-500 pt-4">
           {LANG.fa.copyright}
         </div>
