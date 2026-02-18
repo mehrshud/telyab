@@ -1,5 +1,12 @@
 # 🔍 TelYab - Telegram Username Lookup Tool
 
+[![CI](https://github.com/mehrshud/telyab/actions/workflows/ci.yml/badge.svg)](https://github.com/mehrshud/telyab/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![JavaScript](https://img.shields.io/badge/language-JavaScript-blue)]()
+[![Stars](https://img.shields.io/github/stars/mehrshud/telyab?style=social)](https://github.com/mehrshud/telyab)
+
+
+
 ## 📝 Project Description
 
 TelYab is an advanced Telegram username lookup tool built with React, offering a sleek, modern interface with dark mode support and comprehensive search functionality. The application provides a user-friendly way to analyze Telegram usernames with step-by-step search process visualization.
